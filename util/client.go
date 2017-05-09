@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
-	"mime/multipart"
 	"path/filepath"
-	"io"
 )
 
 const (
@@ -65,7 +65,7 @@ func (c *Client) NewRequest(method string, path string, body interface{}) (*http
 	return req, nil
 }
 
-func (c *Client) NewFileUploadRequest(path string, roomId string, fileLocation string) (*http.Request, error) {
+func (c *Client) NewFileUploadRequest(path string, params map[string]string, fileLocation string) (*http.Request, error) {
 	// concat base url and request url
 	reqUrl, err := url.Parse(c.config.BaseUrl + path)
 	if err != nil {
@@ -85,7 +85,9 @@ func (c *Client) NewFileUploadRequest(path string, roomId string, fileLocation s
 		return nil, err
 	}
 	_, err = io.Copy(part, file)
-	_ = writer.WriteField("roomId", roomId)
+	for k, v := range params {
+		_ = writer.WriteField(k, v)
+	}
 
 	err = writer.Close()
 	if err != nil {
@@ -116,8 +118,8 @@ func (c *Client) NewDeleteRequest(path string) (*http.Request, error) {
 	return c.NewRequest("DELETE", path, nil)
 }
 
-func (c *Client) NewFilePostRequest(path string, roomId string, fileLocation string) (*http.Request, error) {
-	return c.NewFileUploadRequest(path, roomId, fileLocation)
+func (c *Client) NewFilePostRequest(path string, params map[string]string, fileLocation string) (*http.Request, error) {
+	return c.NewFileUploadRequest(path, params, fileLocation)
 }
 
 func (c *Client) Do(req *http.Request, to interface{}) (*http.Response, error) {

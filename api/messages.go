@@ -13,15 +13,15 @@ type MessageService struct {
 }
 
 type Message struct {
-	Id            string `json:"id,omitempty"`
-	RoomId        string `json:"roomId,omitempty"`
-	Text          string `json:"text,omitempty"`
-	Files         string `json:"files,omitempty"`
-	ToPersonId    string `json:"toPersonId,omitempty"`
-	ToPersonEmail string `json:"toPersonEmail,omitempty"`
-	PersonId      string `json:"personId,omitempty"`
-	PersonEmail   string `json:"personEmail,omitempty"`
-	Created       string `json:"created,omitempty"`
+	Id            string   `json:"id,omitempty"`
+	RoomId        string   `json:"roomId,omitempty"`
+	Text          string   `json:"text,omitempty"`
+	Files         []string `json:"files,omitempty"`
+	ToPersonId    string   `json:"toPersonId,omitempty"`
+	ToPersonEmail string   `json:"toPersonEmail,omitempty"`
+	PersonId      string   `json:"personId,omitempty"`
+	PersonEmail   string   `json:"personEmail,omitempty"`
+	Created       string   `json:"created,omitempty"`
 }
 
 type MessageItems struct {
@@ -46,7 +46,9 @@ func (m MessageService) List(roomId string) (*[]Message, error) {
 	return &result.Items, nil
 }
 
-func (m MessageService) Create(roomId string, txt string) (*Message, error) {
+func buildMessageBase(roomId string) (*Message, error) {
+	var msg Message
+
 	// Check for default roomId
 	if roomId == "-" {
 		config := util.GetConfiguration()
@@ -58,7 +60,6 @@ func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 	}
 
 	recipientType := "room"
-	msg := Message{Text: txt}
 
 	// roomId can either be a UUID for a specific room, or an email address
 	// prefixed with 'email:' to send to an individual. (Currently users
@@ -76,6 +77,16 @@ func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 		msg.RoomId = roomId
 	}
 
+	return &msg, nil
+}
+
+func (m MessageService) Create(roomId string, txt string) (*Message, error) {
+	msg, err := buildMessageBase(roomId)
+	if err != nil {
+		return nil, err
+	}
+
+	msg.Text = txt
 	req, err := m.Client.NewPostRequest("/messages", msg)
 	if err != nil {
 		return nil, err
@@ -89,17 +100,19 @@ func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 }
 
 func (m MessageService) CreateFile(roomId string, file string) (*Message, error) {
-	// Check for default roomId
-	if roomId == "-" {
-		config := util.GetConfiguration()
-		if config.DefaultRoomId != "" {
-			roomId = config.DefaultRoomId
-		} else {
-			return nil, errors.New("No DefaultRoomId configured.")
-		}
+	msg, err := buildMessageBase(roomId)
+	if err != nil {
+		return nil, err
 	}
 
-	req, err := m.Client.NewFilePostRequest("/messages", roomId, file)
+	params := make(map[string]string)
+	if msg.RoomId != "" {
+		params["roomId"] = msg.RoomId
+	} else if msg.ToPersonEmail != "" {
+		params["toPersonEmail"] = msg.ToPersonEmail
+	}
+
+	req, err := m.Client.NewFilePostRequest("/messages", params, file)
 	if err != nil {
 		return nil, err
 	}
