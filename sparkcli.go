@@ -3,12 +3,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
-	"github.com/tdeckers/sparkcli/api"
-	"github.com/tdeckers/sparkcli/util"
 	"log" // TODO: change to https://github.com/Sirupsen/logrus
 	"os"
 	"strings"
+
+	"github.com/codegangsta/cli"
+	"github.com/tdeckers/sparkcli/api"
+	"github.com/tdeckers/sparkcli/util"
 )
 
 //

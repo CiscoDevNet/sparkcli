@@ -2,8 +2,10 @@ package api
 
 import (
 	"errors"
-	"github.com/tdeckers/sparkcli/util"
 	"log"
+	"strings"
+
+	"github.com/tdeckers/sparkcli/util"
 )
 
 type MessageService struct {
@@ -44,11 +46,10 @@ func (m MessageService) List(roomId string) (*[]Message, error) {
 	return &result.Items, nil
 }
 
-// TODO: create different version, or update, to support direct msgs.
 func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 	// Check for default roomId
-	config := util.GetConfiguration()
 	if roomId == "-" {
+		config := util.GetConfiguration()
 		if config.DefaultRoomId != "" {
 			roomId = config.DefaultRoomId
 		} else {
@@ -56,7 +57,25 @@ func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 		}
 	}
 
-	msg := Message{RoomId: roomId, Text: txt}
+	recipientType := "room"
+	msg := Message{Text: txt}
+
+	// roomId can either be a UUID for a specific room, or an email address
+	// prefixed with 'email:' to send to an individual. (Currently users
+	// can't be addressed directly by their UUID.)
+	splitRoom := strings.SplitN(roomId, ":", 2)
+	if len(splitRoom) > 1 {
+		recipientType = splitRoom[0]
+		switch recipientType {
+		case "email":
+			msg.ToPersonEmail = splitRoom[1]
+		default:
+			msg.RoomId = splitRoom[1]
+		}
+	} else {
+		msg.RoomId = roomId
+	}
+
 	req, err := m.Client.NewPostRequest("/messages", msg)
 	if err != nil {
 		return nil, err
@@ -71,8 +90,8 @@ func (m MessageService) Create(roomId string, txt string) (*Message, error) {
 
 func (m MessageService) CreateFile(roomId string, file string) (*Message, error) {
 	// Check for default roomId
-	config := util.GetConfiguration()
 	if roomId == "-" {
+		config := util.GetConfiguration()
 		if config.DefaultRoomId != "" {
 			roomId = config.DefaultRoomId
 		} else {
